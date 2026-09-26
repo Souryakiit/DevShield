@@ -175,3 +175,36 @@ Signal fix: `non_registry_dependency` extended to match `requirements_fixture.tx
 ### What was built
 
 - `README.md` — full project README with problem/solution, Mermaid architecture diagram, Bob integration details (MCP tools, custom mode, skill, parallel subagents), how-to-run, evaluation results, safety principles
+
+---
+
+## 2026-09-27 — Phase 7: Evaluation Hardening
+
+### What was built / changed
+
+**`non_registry_dependency` rule reverted (de-overfitted)**
+- `analyzer/signals.py` — filename match now covers only standard manifest names: `requirements.txt` and `requirements-*.txt` (plus `package.json`, `pom.xml` unchanged). The previous `"requirement" in filename` substring match is removed.
+- `fixtures/generate_fixtures.py` — removed `vendor/requirements_fixture.txt` fixture; instead appends the `git+https://example.invalid/pkg.git` line to the target workspace's real `requirements.txt` (creating it if missing). `--clean` now removes the appended line (or the file if it was created).
+- `analyzer/tests/test_signals.py` — added `test_triggered_requirements_dash_variant` (confirms `requirements-dev.txt` fires) and `test_not_triggered_non_standard_requirements_name` (confirms `requirements_fixture.txt` does NOT fire). Total: 29 → 31 tests.
+- `analyzer/evaluate.py` — `EXPECTED_DETECTIONS` updated to `requirements.txt` (was `vendor/requirements_fixture.txt`).
+
+**`evaluate.py` workspace metadata**
+- Accepts any workspace path as a positional argument (already did, now also collects metadata).
+- New `get_repo_metadata()` helper: detects git commit hash, remote, license SPDX id from the workspace path.
+- `write_results_md()` now emits: repository name, commit hash, license, total file count, false positives as a file list (not just a count).
+
+**`.gitignore`**
+- Added `eval-workspace/` entry so cloned repos used for evaluation are never committed.
+
+**`README.md`**
+- Added "How We Evaluated" section describing the full procedure: clone a permissively licensed repo → start services → initial scan → approve baseline → plant fixtures → rescan → run `evaluate.py` → clean up.
+- Includes a "What is measured" table explaining the source of every metric.
+
+### Test results
+
+```
+Analyzer (pytest): 31 passed in 0.13s  — BUILD SUCCESS
+Backend (JUnit):   16 passed (unchanged; Maven wrapper JAR absent in dev environment, previously verified)
+```
+
+No backend Java files were modified in this phase.

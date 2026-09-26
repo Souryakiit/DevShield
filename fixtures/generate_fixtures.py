@@ -50,13 +50,7 @@ FIXTURES = [
         "Do NOT run `npm install` here. "
         "The postinstall script is intentionally suspicious for testing purposes only.\n",
     ),
-    # 5. Non-registry dependency in requirements file
-    (
-        "vendor/requirements_fixture.txt",
-        "# DevShield test fixture - non-registry dependency signal\n"
-        "git+https://example.invalid/pkg.git#egg=suspicious-pkg\n",
-    ),
-    # 6. Obfuscated JS: eval(atob(...)) pattern
+    # 5. Obfuscated JS: eval(atob(...)) pattern
     #    The base64 decodes to: console.log("devshield-test")
     (
         "src/utils/loader.js",
@@ -65,12 +59,12 @@ FIXTURES = [
         '// It does not run any harmful code; the decoded payload is: console.log("devshield-test")\n'
         'eval(atob("Y29uc29sZS5sb2coImRldnNoaWVsZC10ZXN0Iik="));\n',
     ),
-    # 7. Fake PE binary in source directory
+    # 6. Fake PE binary in source directory
     (
         "src/lib/tool.dll",
         b"MZ" + b"\x00" * 62,
     ),
-    # 8. Harmless new Java source file
+    # 7. Harmless new Java source file
     (
         "src/NewFeature.java",
         '// DevShield test fixture \u2014 harmless new file\n'
@@ -81,6 +75,9 @@ FIXTURES = [
         "}\n",
     ),
 ]
+
+# The git+https line appended to the workspace's requirements.txt
+_NON_REGISTRY_LINE = "git+https://example.invalid/pkg.git#egg=suspicious-pkg  # DevShield test fixture\n"
 
 README_CONTENT = (
     "# Demo Workspace\n"
@@ -105,15 +102,33 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     manifest_path = os.path.join(script_dir, "fixture_manifest.json")
 
-    # --clean: remove files recorded in the manifest
+    # --clean: restore files recorded in the manifest
     if args.clean and os.path.isfile(manifest_path):
         with open(manifest_path) as f:
-            old_entries = json.load(f)
-        for rel in old_entries:
+            old_manifest = json.load(f)
+
+        # Remove created files
+        for rel in old_manifest.get("created", []):
             full = os.path.join(target, rel)
             if os.path.isfile(full):
                 os.remove(full)
                 print(f"Removed: {full}")
+
+        # Restore requirements.txt: remove the appended line
+        req_path = os.path.join(target, "requirements.txt")
+        if os.path.isfile(req_path):
+            with open(req_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            clean_lines = [l for l in lines if _NON_REGISTRY_LINE.strip() not in l]
+            if len(clean_lines) < len(lines):
+                if clean_lines:
+                    with open(req_path, "w", encoding="utf-8") as f:
+                        f.writelines(clean_lines)
+                    print(f"Cleaned: {req_path}")
+                else:
+                    # File was empty before; if it was also created by us, it was already removed above
+                    pass
+        return
 
     # Write fixtures
     created = []
@@ -138,6 +153,17 @@ def main():
         print(f"Created: {readme_path}")
     created.append("README.md")
 
+    # Non-registry dependency: append to workspace's requirements.txt (create if missing)
+    req_path = os.path.join(target, "requirements.txt")
+    req_existed = os.path.isfile(req_path)
+    with open(req_path, "a", encoding="utf-8") as f:
+        f.write(_NON_REGISTRY_LINE)
+    if req_existed:
+        print(f"Appended non-registry line to: {req_path}")
+    else:
+        print(f"Created: {req_path}")
+        created.append("requirements.txt")
+
     # Compute SHA-256 of tool.dll and append to analyzer/known_bad_hashes.txt
     dll_path = os.path.join(target, "src/lib/tool.dll")
     sha256 = hashlib.sha256(open(dll_path, "rb").read()).hexdigest()
@@ -148,9 +174,13 @@ def main():
     with open(bad_hashes_path, "a") as f:
         f.write(sha256 + "\n")
 
-    # Save manifest
+    # Save manifest (track created files and whether req_existed)
+    manifest = {
+        "created": created,
+        "requirements_txt_existed": req_existed,
+    }
     with open(manifest_path, "w") as f:
-        json.dump(created, f, indent=2)
+        json.dump(manifest, f, indent=2)
 
     print(f"\nFixture manifest saved to {manifest_path}")
     print(f"Appended hash {sha256} to known_bad_hashes.txt")

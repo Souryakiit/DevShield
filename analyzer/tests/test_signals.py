@@ -213,6 +213,22 @@ class TestNonRegistryDependency:
         weight, detail = check_non_registry_dependency(fi, str(tmp_path))
         assert weight == 0
 
+    def test_triggered_requirements_dash_variant(self, tmp_path):
+        # requirements-dev.txt is a standard manifest name — should match
+        reqs = "pytest\ngit+https://github.com/evil/pkg.git\n"
+        _make_file(str(tmp_path), "requirements-dev.txt", reqs.encode())
+        fi = _fi("requirements-dev.txt", "txt")
+        weight, detail = check_non_registry_dependency(fi, str(tmp_path))
+        assert weight == 25
+
+    def test_not_triggered_non_standard_requirements_name(self, tmp_path):
+        # requirements_fixture.txt does NOT match standard manifest names
+        reqs = "pytest\ngit+https://github.com/evil/pkg.git\n"
+        _make_file(str(tmp_path), "vendor/requirements_fixture.txt", reqs.encode())
+        fi = _fi("vendor/requirements_fixture.txt", "txt")
+        weight, detail = check_non_registry_dependency(fi, str(tmp_path))
+        assert weight == 0
+
 
 # ---------------------------------------------------------------------------
 # Signal 6 — binary_in_source_dir

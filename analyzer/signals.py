@@ -211,7 +211,11 @@ def check_non_registry_dependency(file_info: dict, workspace_path: str) -> tuple
                 if isinstance(dep_value, str) and dep_value.startswith(_NON_REGISTRY_PREFIXES):
                     return (25, f"Dependency resolved via non-registry source: '{dep_name}: {dep_value}'.")
 
-    if filename == "requirements.txt" or (filename.endswith(".txt") and "requirement" in filename.lower()):
+    _req_match = (
+        filename == "requirements.txt"
+        or (filename.startswith("requirements-") and filename.endswith(".txt"))
+    )
+    if _req_match:
         text = _read_file_text(workspace_path, rel)
         if text is None:
             return (0, None)

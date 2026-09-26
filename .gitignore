@@ -14,3 +14,6 @@ backend/target/
 
 # DevShield runtime
 **/.devshield/
+
+# Evaluation workspace (cloned repos for live evaluation — not committed)
+eval-workspace/

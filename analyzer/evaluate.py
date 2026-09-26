@@ -31,6 +31,81 @@ from pathlib import Path
 
 import httpx
 
+
+# ---------------------------------------------------------------------------
+# Git / workspace metadata helpers
+# ---------------------------------------------------------------------------
+
+def _git(cmd: list[str], cwd: str) -> str:
+    """Run a git command and return stdout stripped, or empty string on failure."""
+    try:
+        result = subprocess.run(
+            ["git"] + cmd,
+            capture_output=True, text=True, cwd=cwd
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def get_repo_metadata(workspace_path: str) -> dict:
+    """Collect git metadata and license info for the given workspace."""
+    wsp = workspace_path
+    repo_name = os.path.basename(os.path.abspath(wsp)) or wsp
+    commit_hash = _git(["rev-parse", "HEAD"], wsp)
+    remote = _git(["remote", "get-url", "origin"], wsp)
+
+    # Detect license file
+    license_file = None
+    for name in ("LICENSE", "LICENSE.txt", "LICENSE.md", "LICENCE", "COPYING"):
+        candidate = os.path.join(wsp, name)
+        if os.path.isfile(candidate):
+            license_file = name
+            break
+    license_text = ""
+    if license_file:
+        try:
+            with open(os.path.join(wsp, license_file), "r", encoding="utf-8", errors="replace") as fh:
+                license_text = fh.read(512)
+        except OSError:
+            pass
+
+    # Heuristic: identify SPDX-ish license from first 512 bytes
+    license_id = _detect_license_id(license_text) if license_text else "Unknown"
+
+    return {
+        "repo_name": repo_name,
+        "commit_hash": commit_hash or "not a git repo",
+        "remote": remote,
+        "license": license_id,
+        "license_file": license_file or "none found",
+    }
+
+
+def _detect_license_id(text: str) -> str:
+    t = text.lower()
+    if "mit license" in t or "permission is hereby granted" in t:
+        return "MIT"
+    if "apache license" in t and "version 2" in t:
+        return "Apache-2.0"
+    if "gnu general public license" in t and "version 3" in t:
+        return "GPL-3.0"
+    if "gnu general public license" in t and "version 2" in t:
+        return "GPL-2.0"
+    if "bsd 2-clause" in t or "redistribution and use in source and binary" in t:
+        return "BSD-2-Clause"
+    if "bsd 3-clause" in t:
+        return "BSD-3-Clause"
+    if "isc license" in t:
+        return "ISC"
+    if "mozilla public license" in t:
+        return "MPL-2.0"
+    if "creative commons" in t:
+        return "Creative Commons"
+    if text.strip():
+        return "Detected (see license file)"
+    return "Unknown"
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -65,8 +140,8 @@ EXPECTED_DETECTIONS: list[dict] = [
         "min_risk": "MEDIUM",
     },
     {
-        "relative_path_fragment": "vendor/requirements_fixture.txt",
-        "description": "git+ non-registry dependency",
+        "relative_path_fragment": "requirements.txt",
+        "description": "git+ non-registry dependency (appended to real requirements.txt)",
         "expected_signals": ["non_registry_dependency"],
         "min_risk": "LOW",
     },
@@ -175,6 +250,11 @@ def evaluate(
     wait_for_backend(backend_url)
 
     workspace_abs = str(Path(workspace_path).resolve())
+
+    # Collect repo metadata upfront (non-blocking)
+    print("\n[0/5] Collecting workspace metadata...")
+    repo_meta = get_repo_metadata(workspace_abs)
+    print(f"  repo={repo_meta['repo_name']}  commit={repo_meta['commit_hash'][:12] if repo_meta['commit_hash'] != 'not a git repo' else 'n/a'}  license={repo_meta['license']}")
 
     # ------------------------------------------------------------------
     # Step 1: Initial scan (no baseline)
@@ -296,6 +376,7 @@ def evaluate(
     DOCS_DIR.mkdir(exist_ok=True)
     write_results_md(
         workspace_abs=workspace_abs,
+        repo_meta=repo_meta,
         initial_ms=initial_ms,
         initial_analyzed=initial_analyzed,
         initial_total=initial_total,
@@ -320,6 +401,7 @@ def evaluate(
 
 def write_results_md(
     workspace_abs: str,
+    repo_meta: dict,
     initial_ms: int,
     initial_analyzed: int,
     initial_total: int,
@@ -333,15 +415,25 @@ def write_results_md(
     false_positives: list[dict],
     findings: list[dict],
 ) -> None:
+    # Build false-positive file list for inline display
+    fp_files = [fp["relative_path_fragment"] for fp in false_positives] if false_positives else []
+    fp_list_str = (", ".join(f"`{f}`" for f in fp_files)) if fp_files else "none"
+
     lines = [
         "# DevShield — Evaluation Results",
         "",
-        "> All numbers are real, measured values from a live run against `demo-workspace`.",
+        "> All numbers are real, measured values from a live run of `evaluate.py`.",
         "> No synthetic or estimated figures.",
         "",
         "## Workspace",
-        f"- Path: `{workspace_abs}`",
-        f"- Total files in workspace: {incr_total}",
+        "",
+        "| Field | Value |",
+        "|-------|-------|",
+        f"| Repository | `{repo_meta['repo_name']}` |",
+        f"| Commit hash | `{repo_meta['commit_hash']}` |",
+        f"| License | {repo_meta['license']} (file: `{repo_meta['license_file']}`) |",
+        f"| Total files (after fixtures) | {incr_total} |",
+        f"| Workspace path | `{workspace_abs}` |",
         "",
         "## Scan Performance",
         "",
@@ -368,7 +460,7 @@ def write_results_md(
         f"| Fixtures planted | {len(EXPECTED_DETECTIONS)} |",
         f"| Detected (expected signals fired) | {len(detected)} |",
         f"| Missed | {len(missed)} |",
-        f"| False positives (clean files flagged MEDIUM/HIGH) | {len(false_positives)} |",
+        f"| False positives (clean files flagged MEDIUM/HIGH) | {len(false_positives)} — {fp_list_str} |",
         "",
         "### Detected Fixtures",
         "",
@@ -438,7 +530,7 @@ def write_results_md(
         "| `magic_mismatch` | 35 | `assets/logo.png` | ✅ |",
         "| `install_script` | 30 | `vendor/helper/package.json` | ✅ |",
         "| `double_extension` | 25 | `docs/invoice.pdf.exe` | ✅ |",
-        "| `non_registry_dependency` | 25 | `vendor/requirements_fixture.txt` | ✅ |",
+        "| `non_registry_dependency` | 25 | `requirements.txt` (appended) | ✅ |",
         "| `binary_in_source_dir` | 20 | `src/lib/tool.dll` | ✅ |",
         "| `obfuscated_code` | 20 | `src/utils/loader.js` | ✅ |",
         "| `hidden_file_unusual_location` | 10 | _(no hidden-file fixture planted)_ | — |",

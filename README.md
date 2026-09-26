@@ -260,6 +260,72 @@ From a live run against `demo-workspace` (19 files, 8 fixtures planted):
 
 ---
 
+## How We Evaluated
+
+The evaluation procedure produces real, measured numbers — no synthetic or estimated figures.
+
+### Procedure
+
+1. **Clone a permissively licensed open-source repository** into `./eval-workspace/` (this directory is `.gitignore`d — it is never committed):
+   ```powershell
+   git clone https://github.com/<owner>/<repo>.git eval-workspace
+   ```
+   Choose a repo with a permissive license (MIT, Apache-2.0, BSD) and a meaningful file count (~1 000+ files recommended).
+
+2. **Start the services:**
+   ```powershell
+   .\scripts\run-all.ps1
+   ```
+
+3. **Run the initial scan and approve the baseline:**
+   ```powershell
+   $ws = (Resolve-Path "eval-workspace").Path
+   Invoke-RestMethod -Uri "http://localhost:8080/api/workspace/scan" `
+     -Method POST -Body "{`"workspacePath`":`"$ws`"}" -ContentType "application/json"
+   Invoke-RestMethod -Uri "http://localhost:8080/api/workspace/baseline/approve" `
+     -Method POST -Body "{}" -ContentType "application/json"
+   ```
+   All files scan as NEW; review that there are no unexpected HIGH findings before approving the baseline.
+
+4. **Plant fixtures and rescan:**
+   ```powershell
+   # Plant fixtures (appends git+https line to eval-workspace/requirements.txt)
+   analyzer\.venv\Scripts\python.exe fixtures\generate_fixtures.py eval-workspace
+   # Run incremental scan (only planted files are analyzed)
+   Invoke-RestMethod -Uri "http://localhost:8080/api/workspace/scan" `
+     -Method POST -Body "{`"workspacePath`":`"$ws`"}" -ContentType "application/json"
+   ```
+
+5. **Run `evaluate.py` to measure and record:**
+   ```powershell
+   analyzer\.venv\Scripts\python.exe analyzer\evaluate.py eval-workspace
+   # Results written to docs/RESULTS.md
+   ```
+   The script records: repository name, commit hash, license, total file count, each planted fixture detected or missed, false positives (listed by file), initial scan time and files analyzed, and incremental scan time and files analyzed.
+
+6. **Clean up fixtures when done:**
+   ```powershell
+   analyzer\.venv\Scripts\python.exe fixtures\generate_fixtures.py eval-workspace --clean
+   ```
+
+### What is measured
+
+| Metric | How measured |
+|--------|-------------|
+| Repository name | `basename` of the cloned directory |
+| Commit hash | `git rev-parse HEAD` in `eval-workspace/` |
+| License | First 512 bytes of `LICENSE` file, heuristic SPDX match |
+| Total file count | Backend `totalFiles` field from incremental scan response |
+| Planted fixtures detected | `evaluate.py` matches each expected fixture path against the findings list |
+| Planted fixtures missed | Expected path not in findings, or expected signal not fired |
+| False positives | Clean baseline files that appear with MEDIUM or HIGH risk after the incremental scan |
+| Initial scan time | Wall-clock `durationMs` from the first scan response |
+| Incremental scan time | Wall-clock `durationMs` from the second scan response |
+| Files analyzed (initial) | `analyzedFiles` from first scan (all files = NEW, none skipped) |
+| Files analyzed (incremental) | `analyzedFiles` from second scan (only new/modified files) |
+
+---
+
 ## Safety Principles
 
 - **Never execute scanned files.** DevShield reads bytes only — no execution, no import, no eval of workspace content.
