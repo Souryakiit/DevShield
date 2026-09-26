@@ -1,0 +1,5 @@
+# DevShield known-bad SHA-256 hashes
+# One hash per line. Lines starting with # are comments.
+# Hashes are appended automatically by fixtures/generate_fixtures.py
+014b8ce9fed0aaf124de966f635da95bf7025bee91d1a1c12d6ff5854eba3307
+014b8ce9fed0aaf124de966f635da95bf7025bee91d1a1c12d6ff5854eba3307

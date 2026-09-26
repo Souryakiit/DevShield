@@ -1,0 +1,16 @@
+﻿# Virtual environments
+analyzer/.venv/
+mcp-server/.venv/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Java/Maven
+backend/target/
+*.class
+
+# DevShield runtime
+**/.devshield/

@@ -1,0 +1,8 @@
+known_bad_hash: 100
+magic_mismatch: 35
+install_script: 30
+double_extension: 25
+non_registry_dependency: 25
+binary_in_source_dir: 20
+obfuscated_code: 20
+hidden_file_unusual_location: 10
