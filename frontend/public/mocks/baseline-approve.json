@@ -1,0 +1,8 @@
+{
+  "baselineId": "baseline-2025-07-14-001",
+  "workspacePath": "/home/dev/my-project",
+  "approvedAt": "2025-07-14T12:05:00Z",
+  "filesTracked": 10482,
+  "unresolvedHighFindings": 0,
+  "message": "Baseline approved. 10482 files tracked. Next scan will diff against this state."
+}

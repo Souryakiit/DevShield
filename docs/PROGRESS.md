@@ -208,3 +208,48 @@ Backend (JUnit):   16 passed (unchanged; Maven wrapper JAR absent in dev environ
 ```
 
 No backend Java files were modified in this phase.
+
+---
+
+## 2026-09-27 — Phase 8: Frontend Dashboard
+
+### What was built
+
+Complete React + Vite + TypeScript dashboard in `frontend/` connected to the real backend.
+
+**Contract verification (PHASE 0)**
+- Node v24.14, npm 11.9 — prerequisites satisfied.
+- All backend controller endpoints and JSON shapes exactly match `CONTRACTS.md` — no deviations.
+
+**Project scaffold (PHASE 1)**
+- `frontend/package.json` — React 18, react-router-dom 6, Vite 5, TypeScript 5, cross-env
+- `frontend/vite.config.ts` — dev proxy `/api → http://localhost:8080`, publicDir: `public`
+- `frontend/tsconfig.json` — strict TypeScript, bundler module resolution
+- `frontend/src/config.ts` — `API_BASE_URL` (default `http://localhost:8080`) and `USE_MOCKS` from env
+- `frontend/src/api.ts` — single API layer: `scanWorkspace`, `getFindings`, `getFileDetail`, `searchFiles`, `quarantineFile`, `approveBaseline`; returns real or mock data transparently
+- `frontend/src/types.ts` — TypeScript interfaces mirroring CONTRACTS.md
+- `frontend/public/mocks/` — mock JSON files for demo mode
+
+**Screens (PHASE 2)**
+- `Overview` — workspace path input (localStorage), scan button with loading state, incremental highlight bar ("10,482 tracked · 12 changed · 12 analyzed in 1.4s"), stat cards (total, new, modified, deleted, analyzed, duration, LOW/MEDIUM/HIGH counts), empty state + backend-offline error
+- `Findings` — table with risk badge, score bar, signal chips, recommendation; filter by risk; sort by score; row click → file detail
+- `FileDetail` — metadata grid (path, size, extension, sha256, modified, change type), signal breakdown with weight and detail, explanation, recommendation, quarantine dialog (confirmed=true only), "AI-assisted risk assessment" disclaimer
+- `Search` — debounced search with 300ms delay, table of results with risk badge
+- `ApproveBaseline` — findings summary (HIGH/MEDIUM/LOW pills), unresolved HIGH warning, confirm button, success state with baseline ID and timestamp
+
+**Design (PHASE 3)**
+- `frontend/src/styles/global.css` — dark developer-tool theme (`#0d1117` background), risk colors (HIGH #f85149, MEDIUM #d29922, LOW #3fb950), monospace font for paths/hashes, left sidebar navigation, stat cards, badges, score bar, signal rows, quarantine dialog, empty states
+
+**Integration and demo mode (PHASE 4)**
+- `npm run build` — TypeScript-clean production build (no errors, no warnings)
+- `npm run build:demo` — builds with `VITE_USE_MOCKS=true`; mock files served from `public/mocks/`; demo banner visible; quarantine + approve buttons disabled with tooltip
+- `scripts/run-all.ps1` — updated to also start frontend dev server on port 5173
+- `.gitignore` — added `frontend/dist/`, `frontend/dist-demo/`, `frontend/node_modules/`
+
+### Test results
+
+```
+npm run build       — 45 modules, 0 TypeScript errors — BUILD SUCCESS
+npm run build:demo  — 45 modules, 0 TypeScript errors — BUILD SUCCESS
+```
+

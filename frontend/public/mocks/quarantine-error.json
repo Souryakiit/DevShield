@@ -1,0 +1,4 @@
+{
+  "error": "CONFIRMATION_REQUIRED",
+  "message": "Quarantine requires explicit confirmation. Send { \"confirmed\": true } in the request body."
+}

@@ -159,6 +159,7 @@ The Gate mode and skill use `spawn_subagent` to run three reviewers simultaneous
 | Java | 21+ | `java -version` |
 | Maven | 3.9+ | `mvn -v` — or use `mvnw` wrapper in `backend/` |
 | Python | 3.11+ | `python --version` |
+| Node.js | 18+ | `node -v` — for the dashboard |
 | Git | any | `git --version` |
 
 ### Quick start
@@ -176,16 +177,46 @@ python -m venv .venv
 .\.venv\Scripts\pip install -r requirements.txt
 cd ..
 
-# 3. Start both services
+# 3. Install dashboard dependencies (first time only)
+cd frontend
+npm install
+cd ..
+
+# 4. Start all three services
 .\scripts\run-all.ps1
 ```
 
-Both services start in background processes. Logs are written to `logs/`.
+All three services start in background processes. Logs are written to `logs/`.
 
 | Service | URL |
 |---------|-----|
 | Backend | http://localhost:8080 |
 | Analyzer | http://localhost:8001/docs |
+| Dashboard | http://localhost:5173 |
+
+### Dashboard — live scanning mode
+
+Open http://localhost:5173 after running `.\scripts\run-all.ps1`.
+
+1. Enter the absolute path to the workspace you want to protect (e.g. `C:\projects\my-app`).
+2. Click **Scan workspace** — the Overview shows total files, changes since baseline, and risk counts.
+3. Click any row in **Findings** to see full signal breakdown and the quarantine button.
+4. Use **Search** to locate files by path fragment across the scan index.
+5. Use **Approve Baseline** to seal the current state as the new trusted snapshot.
+
+### Dashboard — demo mode (no backend required)
+
+```powershell
+# Build a static read-only demo with mock data
+cd frontend
+npm run build:demo
+# Serve dist-demo/ with any static file server:
+npx serve dist-demo
+```
+
+The demo build shows a yellow banner: **"Demo data — run locally for live scanning."**
+The quarantine and approve-baseline buttons are disabled with a tooltip.
+All other screens are fully interactive against the mock data.
 
 ### Manual start
 
@@ -197,9 +228,13 @@ cd analyzer
 # Terminal 2 — Backend
 cd backend
 mvn spring-boot:run
+
+# Terminal 3 — Dashboard
+cd frontend
+npm run dev
 ```
 
-### First scan
+### First scan (API only, no dashboard)
 
 ```powershell
 # Scan a workspace
@@ -236,6 +271,9 @@ cd backend; mvn test
 
 # Analyzer (pytest)
 cd analyzer; .\.venv\Scripts\python.exe -m pytest tests/ -v
+
+# Frontend (TypeScript check + production build)
+cd frontend; npm run build
 ```
 
 ---
@@ -344,10 +382,20 @@ DevShield/
   backend/                  Java 21 + Spring Boot 3 — REST API, indexer, scan service
   analyzer/                 Python + FastAPI — 8 security signal functions
   mcp-server/               FastMCP stdio server — wraps backend for Bob
+  frontend/                 React + Vite + TypeScript — DevShield dashboard
+    src/
+      config.ts             API_BASE_URL + USE_MOCKS env switch
+      api.ts                Single API layer (real or mock)
+      types.ts              Shared TypeScript types
+      App.tsx               Router + layout
+      pages/                Overview, Findings, FileDetail, Search, ApproveBaseline
+      components/           Sidebar, RiskBadge, ScoreBar, ActionButton
+      styles/global.css     Dark theme, risk colors, all layout
+    public/mocks/           Static mock JSON for demo mode
   fixtures/                 Safe synthetic test artifact generator
   demo-workspace/           Sample project for integration testing
   scripts/
-    run-all.ps1             Start analyzer + backend
+    run-all.ps1             Start analyzer + backend + frontend dev server
     pre-push                Git pre-push hook (blocks HIGH findings)
     install-hooks.ps1       Install the pre-push hook
   .bob/

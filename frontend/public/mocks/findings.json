@@ -1,0 +1,67 @@
+{
+  "scanId": "scan-2025-07-14-001",
+  "findings": [
+    {
+      "fileId": "f1a2b3c4",
+      "relativePath": "src/utils/loader.png",
+      "riskLevel": "HIGH",
+      "score": 85,
+      "signals": [
+        { "id": "magic_mismatch",              "weight": 35, "detail": "File has PNG extension but contains a PE (Windows executable) header." },
+        { "id": "binary_in_source_dir",         "weight": 20, "detail": "Executable-format file found under src/." },
+        { "id": "hidden_file_unusual_location", "weight": 10, "detail": "File is in a path segment not expected to contain binaries." }
+      ],
+      "recommendation": "QUARANTINE_REVIEW",
+      "explanation": "loader.png carries a Windows PE magic number (MZ) despite its .png extension, strongly suggesting a disguised executable placed inside the source tree.",
+      "changeType": "NEW",
+      "size": 48320,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modifiedTime": "2025-07-14T10:22:05Z"
+    },
+    {
+      "fileId": "a0b1c2d3",
+      "relativePath": "uploads/report.pdf.exe",
+      "riskLevel": "HIGH",
+      "score": 100,
+      "signals": [
+        { "id": "known_bad_hash",   "weight": 100, "detail": "SHA-256 matches local blocklist entry added 2025-07-01." },
+        { "id": "double_extension", "weight": 25,  "detail": "Filename contains two extensions: .pdf.exe." }
+      ],
+      "recommendation": "QUARANTINE_REVIEW",
+      "explanation": "This file's hash is on the local blocklist and its double extension (.pdf.exe) is a classic social-engineering pattern. Immediate quarantine is strongly advised.",
+      "changeType": "NEW",
+      "size": 102400,
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a4",
+      "modifiedTime": "2025-07-14T11:45:00Z"
+    },
+    {
+      "fileId": "d9e8f7a6",
+      "relativePath": "package.json",
+      "riskLevel": "MEDIUM",
+      "score": 55,
+      "signals": [
+        { "id": "install_script",          "weight": 30, "detail": "package.json defines a 'postinstall' script: 'node scripts/setup.js'." },
+        { "id": "non_registry_dependency", "weight": 25, "detail": "Dependency 'internal-lib' resolved via git+https://github.com/corp/internal-lib.git." }
+      ],
+      "recommendation": "REVIEW",
+      "explanation": "package.json adds a postinstall hook and introduces a git-URL dependency. Both are common supply-chain attack vectors and should be reviewed before the next npm install.",
+      "changeType": "MODIFIED",
+      "size": 1842,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "modifiedTime": "2025-07-14T09:55:10Z"
+    },
+    {
+      "fileId": "b5c6d7e8",
+      "relativePath": "scripts/setup.sh",
+      "riskLevel": "LOW",
+      "score": 0,
+      "signals": [],
+      "recommendation": "ALLOW",
+      "explanation": "No suspicious signals detected. Shell script appears to be a standard project setup helper.",
+      "changeType": "NEW",
+      "size": 3210,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3",
+      "modifiedTime": "2025-07-14T11:01:33Z"
+    }
+  ]
+}

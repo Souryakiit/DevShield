@@ -141,8 +141,34 @@ if (-not ($analyzerReady -and $backendReady)) {
     Write-Host "[run-all] All services ready. DevShield is running." -ForegroundColor Green
 }
 
+# ---------------------------------------------------------------------------
+# Start frontend dev server (optional — requires Node 18+ and npm install)
+# ---------------------------------------------------------------------------
+$FrontendDir = Join-Path $Root "frontend"
+$FrontendLog = Join-Path $LogDir "frontend.log"
+$FrontendPort = 5173
+
+if (Test-Path (Join-Path $FrontendDir "node_modules")) {
+    Write-Host "[run-all] Starting frontend dev server on port $FrontendPort  (log: $FrontendLog)" -ForegroundColor Cyan
+    $npmCmd = if (Get-Command npm -ErrorAction SilentlyContinue) { "npm" } else { $null }
+    if ($npmCmd) {
+        $frontendProc = Start-Process -FilePath $npmCmd `
+            -ArgumentList "run", "dev" `
+            -WorkingDirectory $FrontendDir `
+            -RedirectStandardOutput $FrontendLog `
+            -RedirectStandardError ($FrontendLog -replace '\.log$', '-err.log') `
+            -PassThru -NoNewWindow
+        Write-Host "[run-all] Frontend PID: $($frontendProc.Id)" -ForegroundColor Green
+    } else {
+        Write-Warning "[run-all] npm not found — skipping frontend. Install Node 18+ to run the dashboard."
+    }
+} else {
+    Write-Warning "[run-all] frontend/node_modules not found. Run 'cd frontend && npm install' first."
+}
+
 Write-Host ""
 Write-Host "  Backend:  http://localhost:$BackendPort"
 Write-Host "  Analyzer: http://localhost:$AnalyzerPort/docs"
+Write-Host "  Frontend: http://localhost:$FrontendPort"
 Write-Host ""
-Write-Host "  To stop:  Stop-Process -Id $($analyzerProc.Id),$($backendProc.Id)"
+Write-Host "  To stop:  Stop-Process -Name node,python,java -ErrorAction SilentlyContinue"

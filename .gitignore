@@ -17,3 +17,8 @@ backend/target/
 
 # Evaluation workspace (cloned repos for live evaluation — not committed)
 eval-workspace/
+
+# Frontend build outputs
+frontend/dist/
+frontend/dist-demo/
+frontend/node_modules/
