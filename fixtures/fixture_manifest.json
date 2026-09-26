@@ -1,0 +1,11 @@
+[
+  "assets/logo.png",
+  "docs/invoice.pdf.exe",
+  "vendor/helper/package.json",
+  "vendor/helper/README.md",
+  "vendor/requirements_fixture.txt",
+  "src/utils/loader.js",
+  "src/lib/tool.dll",
+  "src/NewFeature.java",
+  "README.md"
+]
