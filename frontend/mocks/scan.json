@@ -1,0 +1,14 @@
+{
+  "scanId": "scan-2025-07-14-001",
+  "workspacePath": "/home/dev/my-project",
+  "totalFiles": 10482,
+  "newFiles": 3,
+  "modifiedFiles": 1,
+  "deletedFiles": 0,
+  "analyzedFiles": 4,
+  "lowCount": 1,
+  "mediumCount": 1,
+  "highCount": 2,
+  "durationMs": 4271,
+  "baselineApprovedAt": "2025-07-13T08:30:00Z"
+}

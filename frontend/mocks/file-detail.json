@@ -1,0 +1,20 @@
+{
+  "fileId": "f1a2b3c4",
+  "relativePath": "src/utils/loader.png",
+  "absolutePath": "/home/dev/my-project/src/utils/loader.png",
+  "extension": "png",
+  "size": 48320,
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "modifiedTime": "2025-07-14T10:22:05Z",
+  "changeType": "NEW",
+  "riskLevel": "HIGH",
+  "score": 85,
+  "signals": [
+    { "id": "magic_mismatch",              "weight": 35, "detail": "File has PNG extension but contains a PE (Windows executable) header." },
+    { "id": "binary_in_source_dir",         "weight": 20, "detail": "Executable-format file found under src/." },
+    { "id": "hidden_file_unusual_location", "weight": 10, "detail": "File is in a path segment not expected to contain binaries." }
+  ],
+  "recommendation": "QUARANTINE_REVIEW",
+  "explanation": "loader.png carries a Windows PE magic number (MZ) despite its .png extension, strongly suggesting a disguised executable placed inside the source tree.",
+  "quarantined": false
+}

@@ -240,15 +240,38 @@ public class ScanService {
     }
 
     /**
-     * Search findings by relativePath substring.
+     * Search ALL indexed files by relativePath substring, enriched with finding data where available.
+     * Files without a finding get riskLevel=null, score=0, recommendation=null.
      */
     public List<Finding> search(String query) {
         ScanState state = lastScan.get();
         if (state == null) return Collections.emptyList();
         String lq = query.toLowerCase();
-        return state.findings().stream()
-                .filter(f -> f.getRelativePath().toLowerCase().contains(lq))
-                .collect(Collectors.toList());
+
+        // Build a map of findings by relativePath for quick lookup
+        Map<String, Finding> findingByPath = new HashMap<>();
+        for (Finding f : state.findings()) {
+            findingByPath.put(f.getRelativePath(), f);
+        }
+
+        List<Finding> results = new ArrayList<>();
+        for (FileRecord fr : state.currentFiles()) {
+            if (!fr.getRelativePath().toLowerCase().contains(lq)) continue;
+            Finding existing = findingByPath.get(fr.getRelativePath());
+            if (existing != null) {
+                results.add(existing);
+            } else {
+                // File is in the index but has no finding (UNCHANGED/DELETED)
+                Finding stub = new Finding();
+                stub.setFileId(fr.getId());
+                stub.setRelativePath(fr.getRelativePath());
+                stub.setRiskLevel("LOW");
+                stub.setScore(0);
+                stub.setRecommendation("ALLOW");
+                results.add(stub);
+            }
+        }
+        return results;
     }
 
     /**

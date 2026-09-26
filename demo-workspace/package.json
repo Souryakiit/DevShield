@@ -1,0 +1,12 @@
+{
+  "name": "demo-app",
+  "version": "1.0.0",
+  "description": "Demo application",
+  "dependencies": {
+    "express": "^4.18.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

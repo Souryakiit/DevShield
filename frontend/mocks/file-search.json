@@ -1,0 +1,12 @@
+{
+  "query": "loader",
+  "results": [
+    {
+      "fileId": "f1a2b3c4",
+      "relativePath": "src/utils/loader.png",
+      "riskLevel": "HIGH",
+      "score": 85,
+      "recommendation": "QUARANTINE_REVIEW"
+    }
+  ]
+}

