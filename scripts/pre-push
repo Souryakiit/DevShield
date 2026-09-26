@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# DevShield pre-push hook
+# Blocks git push while HIGH findings are unresolved.
+#
+# Install:
+#   cp scripts/pre-push .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+#
+# Or use the install helper:
+#   pwsh scripts/install-hooks.ps1
+#
+# To bypass in an emergency (not recommended):
+#   git push --no-verify
+
+set -euo pipefail
+
+BACKEND_URL="${DEVSHIELD_BACKEND_URL:-http://localhost:8080}"
+WORKSPACE_PATH="$(git rev-parse --show-toplevel)"
+
+# ── Colour helpers ──────────────────────────────────────────────────────────
+RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; RESET='\033[0m'
+
+info()  { echo -e "${GREEN}[devshield]${RESET} $*"; }
+warn()  { echo -e "${YELLOW}[devshield]${RESET} $*"; }
+error() { echo -e "${RED}[devshield]${RESET} $*" >&2; }
+
+# ── Check backend is reachable ───────────────────────────────────────────────
+if ! curl -sf --connect-timeout 3 "${BACKEND_URL}/api/workspace/findings" -o /dev/null 2>&1; then
+  warn "DevShield backend not reachable at ${BACKEND_URL}."
+  warn "Start it with: pwsh scripts/run-all.ps1"
+  warn "Skipping supply-chain check (push allowed — start backend to enforce)."
+  exit 0
+fi
+
+info "Running DevShield supply-chain scan..."
+
+# ── Trigger scan ─────────────────────────────────────────────────────────────
+SCAN_RESPONSE=$(curl -sf --connect-timeout 10 --max-time 120 \
+  -X POST "${BACKEND_URL}/api/workspace/scan" \
+  -H "Content-Type: application/json" \
+  -d "{\"workspacePath\": \"${WORKSPACE_PATH}\"}" 2>&1) || {
+  warn "Scan request failed. Allowing push (backend may be busy)."
+  exit 0
+}
+
+TOTAL_FILES=$(echo "$SCAN_RESPONSE"  | grep -o '"totalFiles":[0-9]*'  | grep -o '[0-9]*' || echo 0)
+ANALYZED=$(echo "$SCAN_RESPONSE"     | grep -o '"analyzedFiles":[0-9]*' | grep -o '[0-9]*' || echo 0)
+HIGH_COUNT=$(echo "$SCAN_RESPONSE"   | grep -o '"highCount":[0-9]*'   | grep -o '[0-9]*' || echo 0)
+MEDIUM_COUNT=$(echo "$SCAN_RESPONSE" | grep -o '"mediumCount":[0-9]*' | grep -o '[0-9]*' || echo 0)
+DURATION=$(echo "$SCAN_RESPONSE"     | grep -o '"durationMs":[0-9]*'  | grep -o '[0-9]*' || echo 0)
+
+info "Scan complete: ${TOTAL_FILES} total, ${ANALYZED} analyzed in ${DURATION}ms"
+info "Risk counts: HIGH=${HIGH_COUNT}  MEDIUM=${MEDIUM_COUNT}"
+
+# ── Fetch HIGH findings ───────────────────────────────────────────────────────
+if [ "$HIGH_COUNT" -gt 0 ]; then
+  echo ""
+  error "============================================================"
+  error " PUSH BLOCKED: ${HIGH_COUNT} unresolved HIGH finding(s)"
+  error "============================================================"
+  echo ""
+
+  FINDINGS=$(curl -sf --connect-timeout 5 "${BACKEND_URL}/api/workspace/findings" 2>&1) || true
+
+  # Print each HIGH finding
+  # Extract relativePath values for HIGH findings using basic grep/sed (no jq required)
+  echo "$FINDINGS" | grep -o '"riskLevel":"HIGH"' | while IFS= read -r _; do
+    : # just for counting
+  done
+
+  # Simple extraction without jq: print lines with HIGH context
+  warn "HIGH-risk files detected:"
+  python3 - <<'PYEOF' 2>/dev/null || \
+  echo "$FINDINGS" | grep -o '"relativePath":"[^"]*"' | sed 's/"relativePath":"//;s/"//' | while read -r p; do
+    warn "  $p"
+  done
+import sys, json, os
+findings_json = os.environ.get('FINDINGS', '') or sys.stdin.read()
+try:
+    data = json.loads(findings_json)
+    for f in data.get('findings', []):
+        if f.get('riskLevel') == 'HIGH':
+            path = f.get('relativePath', 'unknown')
+            score = f.get('score', 0)
+            sigs = ', '.join(s['id'] for s in f.get('signals', []))
+            print(f"  [score={score}] {path}")
+            print(f"    signals: {sigs}")
+            print(f"    explanation: {f.get('explanation', '')[:120]}")
+except Exception:
+    pass
+PYEOF
+
+  echo ""
+  warn "To resolve:"
+  warn "  1. Review each HIGH finding (run: pwsh scripts/run-all.ps1, then open http://localhost:5173)"
+  warn "  2. Quarantine or approve each file via the DevShield UI or Bob MCP tools"
+  warn "  3. Approve a new baseline: POST ${BACKEND_URL}/api/workspace/baseline/approve"
+  warn "  4. Re-push"
+  echo ""
+  warn "Emergency bypass (not recommended): git push --no-verify"
+  echo ""
+  exit 1
+fi
+
+# ── Medium findings warning (non-blocking) ───────────────────────────────────
+if [ "$MEDIUM_COUNT" -gt 0 ]; then
+  warn "${MEDIUM_COUNT} MEDIUM finding(s) detected — review recommended but push allowed."
+fi
+
+info "No unresolved HIGH findings. Push allowed."
+exit 0
