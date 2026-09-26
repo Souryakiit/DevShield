@@ -1,8 +1,28 @@
+# DevShield signal weights
+# Documented in docs/BRIEF.md § 6 and analyzer/signals.py
+#
+# Tiered signals use sub-keys; main.py reads the sub-key weights directly
+# from the check functions (which return the correct weight), not from here.
+# This file is the authoritative human-readable record of all weights.
+#
+# magic_mismatch:
+#   executable_header_nonexec_ext: 70  (PE/ELF under image/doc/source extension)
+#   other: 35
+# install_script:
+#   download_exec: 75  (curl|sh, wget|bash, Invoke-Expression, iex)
+#   other: 35
+# double_extension:
+#   dangerous_exec_ext: 45  (.exe .scr .bat .cmd .ps1 .vbs — classic attack exts)
+#   other_exec_ext: 25
+# obfuscated_code:
+#   eval_decode: 40  (eval(atob, eval(base64, exec(base64))
+#   large_blob: 25
+
 known_bad_hash: 100
-magic_mismatch: 35
-install_script: 30
-double_extension: 25
-non_registry_dependency: 25
-binary_in_source_dir: 20
-obfuscated_code: 20
+magic_mismatch: 70
+install_script: 75
+double_extension: 45
+non_registry_dependency: 35
+binary_in_source_dir: 30
+obfuscated_code: 40
 hidden_file_unusual_location: 10

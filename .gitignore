@@ -22,3 +22,7 @@ eval-workspace/
 frontend/dist/
 frontend/dist-demo/
 frontend/node_modules/
+
+# Logs
+logs/
+*.log
