@@ -107,8 +107,11 @@ def main():
         with open(manifest_path) as f:
             old_manifest = json.load(f)
 
+        # Support both old list format and new dict format
+        created_list = old_manifest if isinstance(old_manifest, list) else old_manifest.get("created", [])
+
         # Remove created files
-        for rel in old_manifest.get("created", []):
+        for rel in created_list:
             full = os.path.join(target, rel)
             if os.path.isfile(full):
                 os.remove(full)

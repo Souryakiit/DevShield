@@ -1,3 +1,17 @@
 # DevShield known-bad SHA-256 hashes
+# Sources: EICAR test file, publicly documented supply-chain attack samples, research fixtures
+# Only SHA-256 hashes stored — no malware code is present.
+
+# EICAR standard antivirus test file (not malware — used to verify AV detection)
+275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f
+
+# DevShield internal fixture (demo workspace planted artifact)
 014b8ce9fed0aaf124de966f635da95bf7025bee91d1a1c12d6ff5854eba3307
-014b8ce9fed0aaf124de966f635da95bf7025bee91d1a1c12d6ff5854eba3307
+
+# Supply-chain demo fixtures — used in demo workspace to trigger known_bad_hash signal
+aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aa
+bbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb
+ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbcc
+ddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccdd
+eeff00112233445566778899aabbccddeeff00112233445566778899aabbccddee
+ff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff

@@ -308,3 +308,169 @@ def check_hidden_file_unusual_location(file_info: dict, workspace_path: str) -> 
         return (0, None)
 
     return (10, f"Hidden file found in unexpected location: '{rel}'.")
+
+
+# ---------------------------------------------------------------------------
+# Signal 9 — hardcoded_secret
+# ---------------------------------------------------------------------------
+
+_RE_AWS_KEY    = re.compile(r'AKIA[0-9A-Z]{16}')
+_RE_PRIV_KEY   = re.compile(r'-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----')
+_RE_GH_TOKEN   = re.compile(r'gh[ps]_[A-Za-z0-9]{36,}')
+_RE_GENERIC_KEY = re.compile(
+    r'(?i)(api[_\-]?key|secret[_\-]?key|auth[_\-]?token|password|passwd|access[_\-]?token)\s*[=:]\s*["\']?[A-Za-z0-9+/=_\-]{16,}["\']?'
+)
+_RE_STRIPE     = re.compile(r'sk_(live|test)_[A-Za-z0-9]{24,}')
+_RE_SENDGRID   = re.compile(r'SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}')
+
+_SECRET_SOURCE_EXT = {"js", "ts", "py", "java", "go", "rb", "php", "sh", "env", "yml", "yaml", "json", "xml", "tf"}
+
+
+def check_hardcoded_secret(file_info: dict, workspace_path: str) -> tuple[int, str] | tuple[int, None]:
+    """Return (60, detail) when a file contains hardcoded credentials or API keys."""
+    ext = (file_info.get("extension") or "").lower()
+    rel = file_info.get("relativePath", "")
+
+    # Check .env files regardless of extension
+    filename = rel.replace("\\", "/").split("/")[-1]
+    is_env = filename.startswith(".env") or filename == ".env"
+
+    if ext not in _SECRET_SOURCE_EXT and not is_env:
+        return (0, None)
+
+    text = _read_file_text(workspace_path, rel)
+    if text is None:
+        return (0, None)
+
+    if _RE_PRIV_KEY.search(text):
+        return (80, "File contains a private key (RSA/EC/OpenSSH) — must not be committed.")
+    if _RE_AWS_KEY.search(text):
+        return (70, "AWS access key ID pattern detected (AKIA...) — potential credential exposure.")
+    if _RE_STRIPE.search(text):
+        return (70, "Stripe secret key pattern detected (sk_live/sk_test) — live credentials exposed.")
+    if _RE_SENDGRID.search(text):
+        return (65, "SendGrid API key pattern detected — credential exposure risk.")
+    if _RE_GH_TOKEN.search(text):
+        return (65, "GitHub personal access token pattern detected (ghp_/ghs_).")
+    if _RE_GENERIC_KEY.search(text):
+        return (45, "Generic hardcoded credential pattern detected (api_key/secret/password assignment).")
+
+    return (0, None)
+
+
+# ---------------------------------------------------------------------------
+# Signal 10 — xss_injection_risk
+# ---------------------------------------------------------------------------
+
+_RE_INNER_HTML    = re.compile(r'\.innerHTML\s*=\s*(?!["\'`]<)')  # non-literal assignment
+_RE_DOC_WRITE     = re.compile(r'document\.write\s*\(')
+_RE_EVAL_INPUT    = re.compile(r'eval\s*\(.*(?:req\.|request\.|params\.|query\.|body\.|input|user)', re.IGNORECASE)
+_RE_DANGEROUSLY   = re.compile(r'dangerouslySetInnerHTML')
+_RE_SINK_PATTERNS = re.compile(
+    r'(?:location\.href|location\.replace|location\.assign)\s*=.*(?:req\.|params\.|query\.|input|user)',
+    re.IGNORECASE | re.DOTALL,
+)
+_RE_TEMPLATE_INJECT = re.compile(r'\$\{.*(?:req\.|params\.|query\.|user\.|input)', re.IGNORECASE)
+
+_XSS_EXT = {"js", "ts", "jsx", "tsx", "html", "php", "py"}
+
+
+def check_xss_injection_risk(file_info: dict, workspace_path: str) -> tuple[int, str] | tuple[int, None]:
+    """Return (weight, detail) when the file contains patterns indicating XSS or injection sinks."""
+    ext = (file_info.get("extension") or "").lower()
+    if ext not in _XSS_EXT:
+        return (0, None)
+
+    text = _read_file_text(workspace_path, file_info["relativePath"])
+    if text is None:
+        return (0, None)
+
+    if _RE_EVAL_INPUT.search(text):
+        return (75, "eval() called with what appears to be user-controlled input — RCE/XSS risk.")
+    if _RE_DANGEROUSLY.search(text) and _RE_TEMPLATE_INJECT.search(text):
+        return (60, "dangerouslySetInnerHTML with what appears to be interpolated user input — XSS risk.")
+    if _RE_DOC_WRITE.search(text):
+        return (35, "document.write() usage detected — classic XSS sink, avoid in favour of DOM APIs.")
+    if _RE_INNER_HTML.search(text):
+        return (30, "innerHTML assignment with non-literal value — potential XSS sink, sanitize input.")
+    if _RE_SINK_PATTERNS.search(text):
+        return (45, "DOM location sink assigned from what appears to be user-supplied input — open redirect / XSS.")
+    if _RE_TEMPLATE_INJECT.search(text):
+        return (25, "Template literal interpolation with request/user data — verify output is sanitized.")
+
+    return (0, None)
+
+
+# ---------------------------------------------------------------------------
+# Signal 11 — sql_injection_risk
+# ---------------------------------------------------------------------------
+
+_RE_SQL_CONCAT = re.compile(
+    r'(?:SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\s+.*?["\'\`]\s*\+\s*(?:req\.|params\.|query\.|user\.|input)',
+    re.IGNORECASE | re.DOTALL,
+)
+_RE_SQL_FORMAT = re.compile(
+    r'(?:SELECT|INSERT|UPDATE|DELETE)\s+.*?%s|\.format\s*\(',
+    re.IGNORECASE,
+)
+_RE_RAW_QUERY  = re.compile(
+    r'(?:raw_query|rawQuery|executeQuery|executeSql|db\.query|cursor\.execute)\s*\([^)]*(?:req\.|params\.|user\.|input)',
+    re.IGNORECASE,
+)
+_SQL_EXT = {"py", "js", "ts", "php", "java", "rb", "go"}
+
+
+def check_sql_injection_risk(file_info: dict, workspace_path: str) -> tuple[int, str] | tuple[int, None]:
+    """Return (weight, detail) for SQL injection vulnerability patterns."""
+    ext = (file_info.get("extension") or "").lower()
+    if ext not in _SQL_EXT:
+        return (0, None)
+
+    text = _read_file_text(workspace_path, file_info["relativePath"])
+    if text is None:
+        return (0, None)
+
+    if _RE_SQL_CONCAT.search(text):
+        return (70, "SQL query built by string concatenation with request/user data — SQL injection risk.")
+    if _RE_RAW_QUERY.search(text):
+        return (65, "Raw SQL execution with what appears to be user-supplied parameter — SQLi risk.")
+    if _RE_SQL_FORMAT.search(text):
+        return (30, "SQL query uses %-format or .format() — potential injection if data is user-controlled.")
+
+    return (0, None)
+
+
+# ---------------------------------------------------------------------------
+# Signal 12 — suspicious_network_call
+# ---------------------------------------------------------------------------
+
+_RE_DNS_TUNNEL = re.compile(r'(?:nslookup|dig\s+[A-Za-z0-9]{20,}|host\s+[A-Za-z0-9]{20,})', re.IGNORECASE)
+_RE_EXFIL_UA   = re.compile(r'(?:python-urllib|curl|wget)\b.*(?:passwd|shadow|\.ssh|\.aws)', re.IGNORECASE | re.DOTALL)
+_RE_RAW_SOCKET = re.compile(r'socket\.connect\s*\(\s*\(?\s*["\'](?:\d{1,3}\.){3}\d{1,3}["\']')
+_RE_REVERSE_SHELL = re.compile(
+    r'(?:bash\s+-i\s+>&|nc\s+-[el]|\/dev\/tcp\/|mkfifo\s+/tmp)',
+    re.IGNORECASE,
+)
+_NET_EXT = {"py", "sh", "bash", "js", "rb", "pl"}
+
+
+def check_suspicious_network_call(file_info: dict, workspace_path: str) -> tuple[int, str] | tuple[int, None]:
+    """Return (weight, detail) for exfiltration / reverse-shell / C2 communication patterns."""
+    ext = (file_info.get("extension") or "").lower()
+    if ext not in _NET_EXT:
+        return (0, None)
+
+    text = _read_file_text(workspace_path, file_info["relativePath"])
+    if text is None:
+        return (0, None)
+
+    if _RE_REVERSE_SHELL.search(text):
+        return (90, "Reverse shell pattern detected (bash -i, nc -e, /dev/tcp) — high confidence malicious.")
+    if _RE_EXFIL_UA.search(text):
+        return (75, "HTTP client fetching sensitive system paths (passwd, .ssh, .aws) — data exfiltration risk.")
+    if _RE_RAW_SOCKET.search(text):
+        return (40, "Raw TCP socket connecting to hardcoded IP address — possible C2 callback.")
+    if _RE_DNS_TUNNEL.search(text):
+        return (35, "DNS query with unusually long hostname — possible DNS tunnelling exfiltration.")
+
+    return (0, None)

@@ -73,11 +73,27 @@ export interface QuarantineSuccess {
   restorable: boolean;
 }
 
+export interface UploadResult {
+  workspacePath: string;
+  fileCount: number;
+  sessionId: string;
+  scanResult?: ScanResult;
+  findings?: Finding[];
+}
+
 export interface BaselineApproveResult {
   baselineId: string;
   workspacePath: string;
   approvedAt: string;
   filesTracked: number;
   unresolvedHighFindings: number;
+  message: string;
+}
+
+export interface HashLookupResult {
+  hash: string;
+  found: boolean;
+  verdict: 'MALICIOUS' | 'NOT_FOUND';
+  source: string | null;
   message: string;
 }

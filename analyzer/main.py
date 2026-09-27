@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import pathlib
 from typing import Any
+from fastapi import Query
 
 import yaml
 from fastapi import FastAPI
@@ -21,6 +22,10 @@ from signals import (
     check_binary_in_source_dir,
     check_obfuscated_code,
     check_hidden_file_unusual_location,
+    check_hardcoded_secret,
+    check_xss_injection_risk,
+    check_sql_injection_risk,
+    check_suspicious_network_call,
 )
 
 # ---------------------------------------------------------------------------
@@ -45,6 +50,10 @@ SIGNAL_CHECKS = [
     ("binary_in_source_dir",        check_binary_in_source_dir),
     ("obfuscated_code",             check_obfuscated_code),
     ("hidden_file_unusual_location",check_hidden_file_unusual_location),
+    ("hardcoded_secret",            check_hardcoded_secret),
+    ("xss_injection_risk",          check_xss_injection_risk),
+    ("sql_injection_risk",          check_sql_injection_risk),
+    ("suspicious_network_call",     check_suspicious_network_call),
 ]
 
 # ---------------------------------------------------------------------------
@@ -144,6 +153,31 @@ def analyze(request: AnalyzeRequest) -> Any:
         ))
 
     return AnalyzeResponse(findings=findings)
+
+
+@app.get("/hash-lookup")
+def hash_lookup(hash: str = Query(..., description="SHA-256 hex digest to check")):
+    """Check a SHA-256 hash against the known-bad blocklist."""
+    from signals import _load_known_bad_hashes
+    sha = hash.strip().lower()
+    hashes = _load_known_bad_hashes()
+    found = sha in hashes
+    return {
+        "hash": sha,
+        "found": found,
+        "verdict": "MALICIOUS" if found else "NOT_FOUND",
+        "source": "devshield_local_blocklist" if found else None,
+        "message": (
+            "SHA-256 matches a known-bad hash in the DevShield blocklist."
+            if found else
+            "Hash not found in local blocklist. Not a definitive clean verdict."
+        ),
+    }
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "devshield-analyzer"}
 
 
 # ---------------------------------------------------------------------------

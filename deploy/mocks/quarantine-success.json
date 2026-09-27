@@ -1,0 +1,9 @@
+{
+  "fileId": "f1a2b3c4",
+  "relativePath": "src/utils/loader.png",
+  "quarantinePath": ".devshield/quarantine/f1a2b3c4_loader.png",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reason": "magic_mismatch, binary_in_source_dir",
+  "quarantinedAt": "2025-07-14T12:00:00Z",
+  "restorable": true
+}

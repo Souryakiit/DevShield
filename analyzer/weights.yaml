@@ -26,3 +26,11 @@ non_registry_dependency: 35
 binary_in_source_dir: 30
 obfuscated_code: 40
 hidden_file_unusual_location: 10
+# hardcoded_secret: 45-80 (AWS key=80, private key=75, generic pattern=45)
+hardcoded_secret: 75
+# xss_injection_risk: 25-75 (eval(user_input)=75, dangerouslySetInnerHTML=60)
+xss_injection_risk: 60
+# sql_injection_risk: 30-70 (raw exec with user params=70, string concat=50)
+sql_injection_risk: 60
+# suspicious_network_call: 35-90 (reverse shell=90, DNS tunnel=80, raw TCP=60)
+suspicious_network_call: 80

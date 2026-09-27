@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#030D18"/>
+      <stop offset="100%" stop-color="#061524"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="4" y1="3" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2D9EFF"/>
+      <stop offset="60%" stop-color="#00CFFF"/>
+      <stop offset="100%" stop-color="#5AC8FF"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="url(#bg)"/>
+  <!-- Shield shape -->
+  <path d="M16 3 L28 8 L28 17 C28 23 22 28.5 16 30 C10 28.5 4 23 4 17 L4 8 Z"
+    fill="url(#shield)" opacity="0.12"/>
+  <path d="M16 3 L28 8 L28 17 C28 23 22 28.5 16 30 C10 28.5 4 23 4 17 L4 8 Z"
+    fill="none" stroke="url(#shield)" stroke-width="1.5" filter="url(#glow)"/>
+  <!-- Check / scan mark -->
+  <path d="M10 16 L14 20 L22 12"
+    stroke="#2D9EFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    filter="url(#glow)"/>
+</svg>

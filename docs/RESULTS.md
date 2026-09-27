@@ -39,7 +39,7 @@
 | `assets/logo.png` | MZ-header bytes disguised as PNG | HIGH | 100 | known_bad_hash, magic_mismatch |
 | `docs/invoice.pdf.exe` | Double extension .pdf.exe | LOW | 25 | double_extension |
 | `vendor/helper/package.json` | postinstall curl script | MEDIUM | 30 | install_script |
-| `vendor/requirements_fixture.txt` | git+ non-registry dependency | LOW | 25 | non_registry_dependency |
+| `requirements.txt` | git+ non-registry dependency (appended) | LOW | 25 | non_registry_dependency |
 | `src/utils/loader.js` | eval(atob(...)) obfuscation | LOW | 20 | obfuscated_code |
 | `src/lib/tool.dll` | Fake DLL binary in src/ + known-bad hash | HIGH | 100 | known_bad_hash, binary_in_source_dir |
 | `src/NewFeature.java` | Harmless new Java file (expect LOW/ALLOW) | — | — | none (harmless) |
@@ -61,7 +61,7 @@ None.
 | `src/lib/tool.dll` | HIGH | 100 | known_bad_hash, binary_in_source_dir |
 | `vendor/helper/package.json` | MEDIUM | 30 | install_script |
 | `docs/invoice.pdf.exe` | LOW | 25 | double_extension |
-| `vendor/requirements_fixture.txt` | LOW | 25 | non_registry_dependency |
+| `requirements.txt` | LOW | 25 | non_registry_dependency |
 | `src/utils/loader.js` | LOW | 20 | obfuscated_code |
 | `README.md` | LOW | 0 | — |
 | `src/NewFeature.java` | LOW | 0 | — |
@@ -75,7 +75,7 @@ None.
 | `magic_mismatch` | 35 | `assets/logo.png` | ✅ |
 | `install_script` | 30 | `vendor/helper/package.json` | ✅ |
 | `double_extension` | 25 | `docs/invoice.pdf.exe` | ✅ |
-| `non_registry_dependency` | 25 | `vendor/requirements_fixture.txt` | ✅ |
+| `non_registry_dependency` | 25 | `requirements.txt` (appended) | ✅ |
 | `binary_in_source_dir` | 20 | `src/lib/tool.dll` | ✅ |
 | `obfuscated_code` | 20 | `src/utils/loader.js` | ✅ |
 | `hidden_file_unusual_location` | 10 | _(no hidden-file fixture planted)_ | — |

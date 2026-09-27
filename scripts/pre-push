@@ -27,7 +27,7 @@ error() { echo -e "${RED}[devshield]${RESET} $*" >&2; }
 # ── Check backend is reachable ───────────────────────────────────────────────
 if ! curl -sf --connect-timeout 3 "${BACKEND_URL}/api/workspace/findings" -o /dev/null 2>&1; then
   warn "DevShield backend not reachable at ${BACKEND_URL}."
-  warn "Start it with: pwsh scripts/run-all.ps1"
+  warn "Start it with: ./scripts/run-all.sh  (Linux/macOS) or pwsh scripts/run-all.ps1  (Windows)"
   warn "Skipping supply-chain check (push allowed — start backend to enforce)."
   exit 0
 fi
@@ -92,7 +92,7 @@ PYEOF
 
   echo ""
   warn "To resolve:"
-  warn "  1. Review each HIGH finding (run: pwsh scripts/run-all.ps1, then open http://localhost:5173)"
+  warn "  1. Review each HIGH finding (run: ./scripts/run-all.sh, then open http://localhost:5173)"
   warn "  2. Quarantine or approve each file via the DevShield UI or Bob MCP tools"
   warn "  3. Approve a new baseline: POST ${BACKEND_URL}/api/workspace/baseline/approve"
   warn "  4. Re-push"

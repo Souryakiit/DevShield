@@ -4,30 +4,45 @@ import { getFindings } from '../api';
 import type { Finding, RiskLevel } from '../types';
 import RiskBadge from '../components/RiskBadge';
 import ScoreBar from '../components/ScoreBar';
+import { ShieldAlert, ArrowUpDown } from 'lucide-react';
 
 type Filter = 'ALL' | RiskLevel;
 
 export default function Findings() {
   const navigate = useNavigate();
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>('ALL');
-  const [sortAsc, setSortAsc] = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [filter, setFilter]     = useState<Filter>('ALL');
+  const [sortAsc, setSortAsc]   = useState(false);
 
   useEffect(() => {
+    const cached = sessionStorage.getItem('last_findings');
+    if (cached) {
+      try {
+        const { findings: f } = JSON.parse(cached) as { scanId: string; findings: Finding[] };
+        setFindings(f);
+        setLoading(false);
+        return;
+      } catch { /* fall through to API */ }
+    }
     getFindings()
       .then(r => setFindings(r.findings))
       .catch(e => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="page"><span className="spinner" /></div>;
+  if (loading) return (
+    <div className="page" style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-2)' }}>
+      <span className="spinner" /> Loading findings…
+    </div>
+  );
+
   if (error) return (
     <div className="page">
       <div className="alert alert-error">{error}</div>
-      <p style={{ color: 'var(--muted)', fontSize: 13 }}>
-        Make sure the backend is running: <code className="mono">.\scripts\run-all.ps1</code>
+      <p style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>
+        Ensure backend is running: <code>./scripts/run-all.sh</code>
       </p>
     </div>
   );
@@ -39,19 +54,18 @@ export default function Findings() {
   const counts: Record<string, number> = { ALL: findings.length };
   for (const f of findings) counts[f.riskLevel] = (counts[f.riskLevel] ?? 0) + 1;
 
-  function toggleSort() { setSortAsc(s => !s); }
-
   return (
     <div className="page">
       <div className="page-header">
         <h2>Findings</h2>
-        <p>Files analyzed in the last scan, sorted by risk score.</p>
+        <p>Analyzed files from the last scan, sorted by risk score.</p>
       </div>
 
       {findings.length === 0 ? (
         <div className="empty-state">
-          <h3>No findings yet</h3>
-          <p>Run a scan from the <a href="/">Overview</a> page first.</p>
+          <ShieldAlert size={48} strokeWidth={1} />
+          <h3>No Findings</h3>
+          <p>Run a scan from the <a href="/">Overview</a> first.</p>
         </div>
       ) : (
         <>
@@ -71,33 +85,56 @@ export default function Findings() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: '40%' }}>File path</th>
+                  <th style={{ width: '38%' }}>File Path</th>
                   <th>Risk</th>
-                  <th onClick={toggleSort} title="Click to toggle sort">
-                    Score {sortAsc ? '↑' : '↓'}
+                  <th
+                    onClick={() => setSortAsc(s => !s)}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      Score <ArrowUpDown size={10} />
+                    </span>
                   </th>
                   <th>Signals</th>
-                  <th>Recommendation</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(f => (
-                  <tr key={f.fileId} onClick={() => navigate(`/file/${f.fileId}`)}>
-                    <td className="mono" style={{ maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <tr
+                    key={f.fileId}
+                    className={`risk-${f.riskLevel}`}
+                    onClick={() => navigate(`/file/${f.fileId}`)}
+                  >
+                    <td className="mono" style={{
+                      maxWidth: 380,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontSize: 12,
+                    }}>
                       {f.relativePath}
                     </td>
                     <td><RiskBadge level={f.riskLevel} /></td>
                     <td style={{ width: 140 }}><ScoreBar score={f.score} /></td>
                     <td>
-                      {f.signals.slice(0, 3).map(s => (
-                        <span key={s.id} className="chip">{s.id}</span>
+                      {f.signals.slice(0, 2).map(s => (
+                        <span
+                          key={s.id}
+                          className={`chip ${s.weight >= 70 ? 'chip-high' : s.weight >= 30 ? 'chip-medium' : ''}`}
+                        >
+                          {s.id}
+                        </span>
                       ))}
-                      {f.signals.length > 3 && (
-                        <span className="chip">+{f.signals.length - 3}</span>
+                      {f.signals.length > 2 && (
+                        <span className="chip">+{f.signals.length - 2}</span>
+                      )}
+                      {f.signals.length === 0 && (
+                        <span style={{ color: 'var(--muted)', fontSize: 11, fontFamily: 'var(--mono)' }}>—</span>
                       )}
                     </td>
                     <td>
-                      <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--mono)' }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)' }}>
                         {f.recommendation}
                       </span>
                     </td>

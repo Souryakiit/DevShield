@@ -1,2 +1,0 @@
-# DevShield test fixture - non-registry dependency signal
-git+https://example.invalid/pkg.git#egg=suspicious-pkg

@@ -11,6 +11,8 @@ import type {
   SearchResponse,
   QuarantineSuccess,
   BaselineApproveResult,
+  UploadResult,
+  HashLookupResult,
 } from './types';
 
 // ----------------------------------------------------------------
@@ -112,6 +114,69 @@ export async function approveBaseline(): Promise<BaselineApproveResult> {
     method: 'POST',
     body: JSON.stringify({}),
   });
+}
+
+// ----------------------------------------------------------------
+// workspace upload
+// ----------------------------------------------------------------
+export async function uploadWorkspace(
+  files: File[],
+  paths: string[],
+  onProgress?: (pct: number) => void,
+): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    paths.forEach(p => form.append('paths', p));
+
+    const xhr = new XMLHttpRequest();
+    // Use same-origin /api/scan when on Vercel (no localhost backend)
+    const uploadUrl = window.location.hostname !== 'localhost'
+      ? '/api/scan'
+      : `${API_BASE_URL}/api/workspace/upload`;
+    xhr.open('POST', uploadUrl);
+
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as UploadResult);
+      } else {
+        const body = JSON.parse(xhr.responseText || '{}');
+        reject(new ApiError(xhr.status, body, body.message ?? `HTTP ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new ApiError(0, null, 'Backend unreachable.'));
+    xhr.send(form);
+  });
+}
+
+// ----------------------------------------------------------------
+// hash lookup
+// ----------------------------------------------------------------
+export async function lookupHash(hash: string): Promise<HashLookupResult> {
+  const cleaned = hash.trim().toLowerCase();
+  // Use same-origin /api/hash-lookup on Vercel, else local analyzer
+  const url = window.location.hostname !== 'localhost'
+    ? `/api/hash-lookup?hash=${encodeURIComponent(cleaned)}`
+    : `${API_BASE_URL.replace(':8080', ':8001')}/hash-lookup?hash=${encodeURIComponent(cleaned)}`;
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    const EICAR = '275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f';
+    const found = cleaned === EICAR;
+    return {
+      hash: cleaned, found,
+      verdict: found ? 'MALICIOUS' : 'NOT_FOUND',
+      source: found ? 'devshield_local_blocklist' : null,
+      message: found ? 'SHA-256 matches EICAR test file (known bad).'
+        : 'Hash not found. Analyzer unreachable — result is incomplete.',
+    };
+  }
+  return res.json() as Promise<HashLookupResult>;
 }
 
 export { ApiError };

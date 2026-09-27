@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "routes": [
+    { "src": "/api/scan", "dest": "/api/scan.py" },
+    { "src": "/api/hash-lookup", "dest": "/api/hash-lookup.py" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/mocks/(.*)", "dest": "/mocks/$1" },
+    { "src": "/favicon.svg", "dest": "/favicon.svg" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
