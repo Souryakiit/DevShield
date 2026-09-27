@@ -22,10 +22,8 @@ export default function ApproveBaseline() {
         return;
       } catch { /* fall through */ }
     }
-    getFindings()
-      .then(r => setFindings(r.findings))
-      .catch(e => setFindingsError((e as Error).message))
-      .finally(() => setLoadingFindings(false));
+    // No session data — skip backend call, show empty state
+    setLoadingFindings(false);
   }, []);
 
   async function handleApprove() {
@@ -82,7 +80,11 @@ export default function ApproveBaseline() {
         <p>Seal the current workspace state as the new trusted snapshot. Future scans diff against this.</p>
       </div>
 
-      {findingsError && <div className="alert alert-error">{findingsError}</div>}
+      {!loadingFindings && findings.length === 0 && (
+        <div className="alert" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-2)', marginBottom: 16 }}>
+          No scan data yet. Upload files on the <a href="/" style={{ color: 'var(--accent)' }}>Overview</a> page first, then return here to approve a baseline.
+        </div>
+      )}
 
       {highCount > 0 && (
         <div className="alert alert-error">
@@ -91,7 +93,7 @@ export default function ApproveBaseline() {
         </div>
       )}
 
-      {!loadingFindings && (
+      {!loadingFindings && findings.length > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="section-title" style={{ marginTop: 0 }}>
             <Shield size={11} /> Current Scan Summary

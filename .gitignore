@@ -26,3 +26,7 @@ frontend/node_modules/
 # Logs
 logs/
 *.log
+
+# Compiled deploy assets (deployed via Vercel API, not needed in git)
+deploy/assets/
+deploy/index.html
